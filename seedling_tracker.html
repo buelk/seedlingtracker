@@ -1,0 +1,1268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Seedlings">
+<title>Seedling Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Inconsolata:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --paper: #f5f0e8;
+  --paper2: #ede8dc;
+  --ink: #2a2418;
+  --ink2: #5a5040;
+  --ink3: #9a8f7a;
+  --rule: #d8d0be;
+  --sprout: #4a7c45;
+  --sprout-light: #d4ead2;
+  --sprout-dot: #6ab564;
+  --seed: #b8a882;
+  --seed-light: #ede8dc;
+  --amber: #c47b20;
+  --amber-light: #faebd2;
+
+  /* tray colors */
+  --tray-gray: #8a9098;
+  --tray-orange: #c85c28;
+  --tray-green: #4a7c45;
+  --tray-terra: #a05c3a;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: 'Inconsolata', monospace;
+  min-height: 100vh;
+  padding-bottom: max(60px, env(safe-area-inset-bottom));
+}
+
+.header {
+  padding-top: max(28px, env(safe-area-inset-top));
+}
+
+/* subtle paper grain */
+body::after {
+  content:'';
+  position:fixed;
+  inset:0;
+  pointer-events:none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+  z-index:9999;
+}
+
+/* HEADER */
+.header {
+  background: var(--ink);
+  color: var(--paper);
+  padding: 28px 40px 24px;
+  padding-left: max(40px, env(safe-area-inset-left));
+  padding-right: max(40px, env(safe-area-inset-right));
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  border-bottom: 3px solid var(--sprout);
+}
+
+.header-left h1 {
+  font-family: 'Playfair Display', serif;
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: .01em;
+  line-height: 1;
+}
+
+.header-left .sub {
+  font-size: .75rem;
+  color: var(--ink3);
+  margin-top: 5px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+.header-right {
+  text-align: right;
+}
+
+.summary-pills {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.pill {
+  background: rgba(255,255,255,.08);
+  border: 1px solid rgba(255,255,255,.15);
+  border-radius: 20px;
+  padding: 5px 14px;
+  font-size: .72rem;
+  color: var(--paper);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pill .pip {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+}
+.pip.green { background: var(--sprout-dot); }
+.pip.amber { background: #f0b429; }
+.pip.red { background: #c0392b; }
+
+.export-btn {
+  background: rgba(90,219,126,.15);
+  border: 1px solid rgba(90,219,126,.35);
+  border-radius: 20px;
+  padding: 5px 16px;
+  font-size: .72rem;
+  color: var(--sprout-dot);
+  cursor: pointer;
+  font-family: 'Inconsolata', monospace;
+  transition: background .2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  letter-spacing: .03em;
+}
+
+.export-btn:hover { background: rgba(90,219,126,.25); }
+
+/* MAIN */
+.main {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 32px 32px 0;
+}
+
+/* SECTION HEADERS */
+.section-label {
+  font-family: 'Playfair Display', serif;
+  font-style: italic;
+  font-size: 1.1rem;
+  color: var(--ink2);
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 8px;
+  margin-bottom: 20px;
+  margin-top: 36px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.section-label:first-of-type { margin-top: 0; }
+
+.section-count {
+  font-family: 'Inconsolata', monospace;
+  font-style: normal;
+  font-size: .7rem;
+  color: var(--ink3);
+  background: var(--paper2);
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  padding: 2px 9px;
+}
+
+/* TRAY GRID */
+.trays-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 18px;
+}
+
+/* TRAY CARD */
+.tray-card {
+  background: #fff;
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 1px 4px rgba(42,36,24,.06);
+  cursor: pointer;
+  transition: box-shadow .2s, transform .15s;
+  animation: riseUp .4s ease both;
+}
+
+.tray-card:hover {
+  box-shadow: 0 4px 16px rgba(42,36,24,.12);
+  transform: translateY(-2px);
+}
+
+.tray-header {
+  padding: 13px 16px 11px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.tray-color-dot {
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  border: 2px solid rgba(0,0,0,.12);
+}
+
+.tray-name {
+  font-family: 'Playfair Display', serif;
+  font-size: .9rem;
+  font-weight: 700;
+  color: var(--ink);
+  flex: 1;
+}
+
+.tray-fraction {
+  font-size: .7rem;
+  color: var(--ink3);
+  font-weight: 500;
+}
+
+.tray-fraction span {
+  color: var(--sprout);
+  font-weight: 700;
+}
+
+/* CELL GRID */
+.cell-grid {
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cell-slot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  border-radius: 7px;
+  background: var(--seed-light);
+  border: 1px solid var(--rule);
+  transition: background .2s;
+  cursor: pointer;
+  position: relative;
+}
+
+.cell-slot:hover { background: var(--paper2); }
+
+.cell-slot.sprouted {
+  background: var(--sprout-light);
+  border-color: #b8ddb5;
+}
+
+.cell-slot.empty-slot {
+  opacity: .4;
+  border-style: dashed;
+}
+
+.cell-slot.failed-slot {
+  background: #fdf0ee;
+  border-color: #f0c8c2;
+  opacity: .75;
+}
+
+.cell-slot.available-slot {
+  background: var(--amber-light);
+  border-color: #e8d0a8;
+  border-style: dashed;
+  cursor: pointer;
+}
+
+.cell-pip.failed {
+  background: #d9534f;
+  border-color: #c0392b;
+}
+
+.cell-visual {
+  display: flex;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.cell-pip {
+  width: 9px; height: 9px;
+  border-radius: 50%;
+  border: 1px solid rgba(0,0,0,.15);
+  background: var(--seed);
+  transition: background .2s, transform .2s;
+}
+
+.cell-pip.sprouted {
+  background: var(--sprout-dot);
+  border-color: var(--sprout);
+  transform: scale(1.15);
+}
+
+.cell-pip.empty {
+  background: transparent;
+  border-color: var(--rule);
+  border-style: dashed;
+}
+
+.cell-info { flex: 1; min-width: 0; }
+
+.cell-name {
+  font-size: .75rem;
+  color: var(--ink);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cell-status {
+  font-size: .65rem;
+  color: var(--ink3);
+  margin-top: 1px;
+}
+
+.cell-status.emerging { color: var(--sprout); font-weight: 500; }
+
+.sprout-icon {
+  font-size: .9rem;
+  flex-shrink: 0;
+  opacity: 0;
+  transform: scale(0.5);
+  transition: all .3s ease;
+}
+
+.cell-slot.sprouted .sprout-icon {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* POTS */
+.pots-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 18px;
+}
+
+.pot-card {
+  background: #fff;
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 1px 4px rgba(42,36,24,.06);
+  cursor: pointer;
+  transition: box-shadow .2s, transform .15s;
+  animation: riseUp .4s ease both;
+}
+
+.pot-card:hover {
+  box-shadow: 0 4px 16px rgba(42,36,24,.12);
+  transform: translateY(-2px);
+}
+
+.pot-header {
+  background: var(--ink);
+  color: var(--paper);
+  padding: 13px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.pot-title {
+  font-family: 'Playfair Display', serif;
+  font-size: .9rem;
+  font-weight: 700;
+}
+
+.pot-body {
+  padding: 14px 16px;
+}
+
+.pot-species {
+  font-size: .8rem;
+  font-weight: 500;
+  color: var(--ink);
+  margin-bottom: 6px;
+}
+
+.pot-status {
+  font-size: .68rem;
+  color: var(--ink3);
+}
+
+.pot-visual {
+  margin-top: 10px;
+  display: flex;
+  gap: 5px;
+}
+
+.pot-dot {
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  background: var(--seed);
+  border: 1px solid rgba(0,0,0,.1);
+}
+
+.pot-dot.sprouted {
+  background: var(--sprout-dot);
+  border-color: var(--sprout);
+}
+
+.pot-dot.failed {
+  background: #d9534f;
+  border-color: #c0392b;
+}
+
+/* ROCKWOOL */
+.rockwool-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 14px;
+}
+
+.rw-card {
+  background: #fff;
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  transition: box-shadow .2s, transform .15s;
+  animation: riseUp .4s ease both;
+}
+
+.rw-card:hover {
+  box-shadow: 0 3px 12px rgba(42,36,24,.1);
+  transform: translateY(-1px);
+}
+
+.rw-cube {
+  width: 36px; height: 36px;
+  border-radius: 6px;
+  background: var(--paper2);
+  border: 2px solid var(--rule);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  flex-shrink: 0;
+  transition: background .2s, border-color .2s;
+}
+
+.rw-cube.sprouted {
+  background: var(--sprout-light);
+  border-color: var(--sprout);
+}
+
+.rw-info { flex: 1; }
+
+.rw-name { font-size: .78rem; font-weight: 500; color: var(--ink); }
+.rw-status { font-size: .65rem; color: var(--ink3); margin-top:2px; }
+.rw-status.emerging { color: var(--sprout); font-weight: 500; }
+
+/* FAILURE LOG */
+.failure-log {
+  background: #fff;
+  border: 1px solid #f0c8c2;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 1px 4px rgba(42,36,24,.06);
+}
+
+.failure-log-header {
+  background: #fdf0ee;
+  border-bottom: 1px solid #f0c8c2;
+  padding: 12px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.failure-log-title {
+  font-family: 'Playfair Display', serif;
+  font-size: .85rem;
+  font-weight: 700;
+  color: #c0392b;
+}
+
+.failure-log-empty {
+  padding: 18px;
+  font-size: .72rem;
+  color: var(--ink3);
+  font-style: italic;
+  text-align: center;
+}
+
+.failure-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 18px;
+  border-bottom: 1px solid var(--rule);
+  font-size: .72rem;
+}
+
+.failure-row:last-child { border-bottom: none; }
+
+.failure-icon { font-size: .85rem; flex-shrink: 0; }
+
+.failure-info { flex: 1; }
+.failure-name { color: var(--ink); font-weight: 500; }
+.failure-meta { color: var(--ink3); font-size: .65rem; margin-top: 1px; }
+
+.failure-date { color: var(--ink3); font-size: .65rem; white-space: nowrap; }
+
+.btn-clear-log {
+  background: none;
+  border: 1px solid #f0c8c2;
+  border-radius: 5px;
+  padding: 3px 10px;
+  font-size: .62rem;
+  color: #c0392b;
+  cursor: pointer;
+  font-family: 'Inconsolata', monospace;
+  transition: all .2s;
+}
+
+.btn-clear-log:hover { background: #fdf0ee; }
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(42,36,24,.55);
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(2px);
+}
+
+.modal-overlay.active { display: flex; }
+
+.modal {
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: 14px;
+  padding: 28px;
+  width: 420px;
+  max-width: 95vw;
+  box-shadow: 0 12px 40px rgba(42,36,24,.2);
+}
+
+.modal-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--ink);
+  margin-bottom: 20px;
+}
+
+.modal-field { margin-bottom: 14px; }
+
+.modal-label {
+  display: block;
+  font-size: .65rem;
+  color: var(--ink3);
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  margin-bottom: 6px;
+}
+
+.modal-input {
+  width: 100%;
+  background: #fff;
+  border: 1px solid var(--rule);
+  border-radius: 7px;
+  padding: 9px 12px;
+  color: var(--ink);
+  font-family: 'Inconsolata', monospace;
+  font-size: .82rem;
+  outline: none;
+  transition: border-color .2s;
+}
+
+.modal-input:focus { border-color: var(--sprout); }
+select.modal-input { appearance: none; -webkit-appearance: none; }
+
+.modal-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 20px;
+}
+
+.modal-right { display: flex; gap: 10px; }
+
+.btn {
+  padding: 8px 18px;
+  border-radius: 7px;
+  font-family: 'Inconsolata', monospace;
+  font-size: .78rem;
+  cursor: pointer;
+  border: none;
+  transition: opacity .2s;
+  letter-spacing: .02em;
+}
+
+.btn:hover { opacity: .82; }
+.btn-primary { background: var(--sprout); color: #fff; font-weight: 500; }
+.btn-ghost { background: var(--paper2); color: var(--ink2); border: 1px solid var(--rule); }
+.btn-danger { background: rgba(180,50,30,.1); color: #c0392b; border: 1px solid rgba(180,50,30,.25); }
+
+/* ADD BUTTON */
+.add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: 1px dashed var(--rule);
+  border-radius: 10px;
+  padding: 9px 16px;
+  color: var(--ink3);
+  font-family: 'Inconsolata', monospace;
+  font-size: .72rem;
+  cursor: pointer;
+  transition: all .2s;
+  margin-top: 4px;
+}
+
+.add-btn:hover { border-color: var(--sprout); color: var(--sprout); }
+
+@keyframes riseUp {
+  from { opacity:0; transform:translateY(12px); }
+  to { opacity:1; transform:translateY(0); }
+}
+
+/* RESPONSIVE */
+@media (max-width: 600px) {
+  .header { flex-direction: column; align-items: flex-start; gap: 14px; padding: 20px 20px 18px; }
+  .main { padding: 20px 16px 0; }
+  .summary-pills { flex-wrap: wrap; }
+  .trays-grid, .pots-grid, .rockwool-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <h1>🌱 Seedling Tracker</h1>
+    <div class="sub" id="header-date">Spring 2026 · Indianapolis</div>
+  </div>
+  <div class="header-right">
+    <div class="summary-pills" id="summary-pills">
+      <div class="pill"><span class="pip green"></span><span id="pill-emerged">— emerged</span></div>
+      <div class="pill"><span class="pip amber"></span><span id="pill-waiting">— waiting</span></div>
+      <div class="pill"><span class="pip red"></span><span id="pill-failed">— failed</span></div>
+      <button onclick="exportCSV()" class="export-btn">⬇ Export CSV</button>
+    </div>
+  </div>
+</div>
+
+<div class="main">
+  <div class="section-label">
+    Cell Trays <span class="section-count" id="tray-count"></span>
+  </div>
+  <div class="trays-grid" id="trays-grid"></div>
+
+  <div class="section-label" style="margin-top:36px">
+    Starter Pots <span class="section-count" id="pot-count"></span>
+  </div>
+  <div class="pots-grid" id="pots-grid"></div>
+
+  <div class="section-label" style="margin-top:36px">
+    Hydroponic Tower — Rockwool Cubes <span class="section-count" id="rw-count"></span>
+  </div>
+  <div class="rockwool-grid" id="rw-grid"></div>
+  <button class="add-btn" style="margin-top:14px" onclick="addRW()">+ Add Cube</button>
+
+  <div style="margin-top:36px; margin-bottom:8px;">
+    <button class="add-btn" onclick="addTray()">+ Add Tray</button>
+    <button class="add-btn" style="margin-left:8px" onclick="addPot()">+ Add Pot</button>
+  </div>
+
+  <div class="section-label" style="margin-top:36px">
+    Failure Log <span class="section-count" id="fail-count"></span>
+  </div>
+  <div class="failure-log">
+    <div class="failure-log-header">
+      <div class="failure-log-title">☠️ Never Sprouted</div>
+      <button class="btn-clear-log" onclick="clearLog()">Clear all</button>
+    </div>
+    <div id="failure-log-body"></div>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal">
+    <div class="modal-title" id="modal-title"></div>
+    <div id="modal-body"></div>
+    <div class="modal-actions">
+      <div id="modal-del"></div>
+      <div class="modal-right">
+        <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+        <button class="btn btn-primary" id="modal-save">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── DATE ────────────────────────────────────────────────────
+(function(){
+  const n=new Date();
+  const M=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  document.getElementById('header-date').textContent =
+    M[n.getMonth()]+' '+n.getDate()+', '+n.getFullYear()+' · Indianapolis';
+})();
+
+// ── STORAGE ─────────────────────────────────────────────────
+const TRAY_COLORS = {
+  gray: '#8a9098', orange: '#c85c28', green: '#4a7c45', terracotta: '#a05c3a'
+};
+
+const DEFAULTS = {
+  trays: [
+    { id:'t1', color:'gray', name:'Gray Tray #1', slots:[
+      { name:'Black Magic Snapdragon', total:6, sprouted:2 }
+    ]},
+    { id:'t2', color:'gray', name:'Gray Tray #2', slots:[
+      { name:'Corsican Mint', total:6, sprouted:1 }
+    ]},
+    { id:'t3', color:'orange', name:'Orange Tray #1', slots:[
+      { name:'Rock Cress', total:6, sprouted:1 }
+    ]},
+    { id:'t4', color:'orange', name:'Orange Tray #2', slots:[
+      { name:'Lavender', total:4, sprouted:0 },
+      { name:'Hollyhock', total:2, sprouted:0 }
+    ]},
+    { id:'t5', color:'green', name:'Green Tray #1', slots:[
+      { name:'Echinacea', total:4, sprouted:0 },
+      { name:'Salvia', total:2, sprouted:0 }
+    ]},
+    { id:'t6', color:'terracotta', name:'Terracotta Tray #1', slots:[
+      { name:'Magic Carpet Snapdragon', total:2, sprouted:0 },
+      { name:'Thyme', total:4, sprouted:0 }
+    ]},
+    { id:'t7', color:'terracotta', name:'Terracotta Tray #2', slots:[
+      { name:'Paprika', total:2, sprouted:0 },
+      { name:'Rezha Dolma', total:1, sprouted:0 },
+      { name:'Leysa Purple', total:1, sprouted:0 },
+      { name:'Scotch Bonnet', total:1, sprouted:0 },
+      { name:'Sugar Rush Peach', total:1, sprouted:0 }
+    ]},
+    { id:'t8', color:'green', name:'Green Tray #2', slots:[
+      { name:'Shishito', total:1, sprouted:0 },
+      { name:'Corbaci', total:1, sprouted:0 },
+      { name:'The Purple Tomato', total:1, sprouted:0 },
+      { name:'San Marzano Tomato', total:1, sprouted:0 },
+      { name:'Ping Tung Eggplant', total:1, sprouted:0 },
+      { name:'(empty)', total:1, sprouted:0, empty:true }
+    ]}
+  ],
+  pots: [
+    { id:'p1', name:'Pot #1', species:'Charapita Pepper', sprouted:0, total:1 },
+    { id:'p2', name:'Pot #2', species:'Sweet Red Habanero', sprouted:0, total:1 }
+  ],
+  rockwool: [
+    { id:'rw1', name:'May Queen Lettuce', sprouted:false },
+    { id:'rw2', name:'May Queen Lettuce', sprouted:false },
+    { id:'rw3', name:'May Queen Lettuce', sprouted:false },
+    { id:'rw4', name:'May Queen Lettuce', sprouted:false }
+  ]
+};
+
+function lget(k){try{const v=localStorage.getItem('st_'+k);return v?JSON.parse(v):null;}catch(e){return null;}}
+function lset(k,v){try{localStorage.setItem('st_'+k,JSON.stringify(v));}catch(e){}}
+function gd(k){return lget(k)||JSON.parse(JSON.stringify(DEFAULTS[k]));}
+function sd(k,v){lset(k,v);}
+function uid(){return 'id'+Date.now()+Math.random().toString(36).slice(2,6);}
+
+// ── SUMMARY ─────────────────────────────────────────────────
+function updateSummary(){
+  let emerged=0, waiting=0, failed=0;
+  gd('trays').forEach(t=>t.slots.forEach(s=>{
+    if(s.available) return;
+    if(!s.empty&&!s.failed){emerged+=s.sprouted;waiting+=(s.total-s.sprouted);}
+    if(s.failed) failed+=s.total;
+  }));
+  gd('pots').forEach(p=>{
+    if(p.failed) failed++;
+    else {emerged+=p.sprouted;waiting+=(p.total-p.sprouted);}
+  });
+  gd('rockwool').forEach(r=>{
+    if(r.failed) failed++;
+    else if(r.sprouted) emerged++;
+    else waiting++;
+  });
+  document.getElementById('pill-emerged').textContent=emerged+' emerged';
+  document.getElementById('pill-waiting').textContent=waiting+' waiting';
+  document.getElementById('pill-failed').textContent=failed+' failed';
+}
+
+function renderFailureLog(){
+  const log=lget('failureLog')||[];
+  const body=document.getElementById('failure-log-body');
+  document.getElementById('fail-count').textContent=log.length+' recorded';
+  if(log.length===0){
+    body.innerHTML=`<div class="failure-log-empty">No failures logged yet — fingers crossed 🤞</div>`;
+    return;
+  }
+  body.innerHTML=log.slice().reverse().map(f=>`
+    <div class="failure-row">
+      <div class="failure-icon">🪦</div>
+      <div class="failure-info">
+        <div class="failure-name">${esc(f.name)}</div>
+        <div class="failure-meta">${esc(f.source)} · ${f.cells} cell${f.cells>1?'s':''} · slot freed for reseeding</div>
+      </div>
+      <div class="failure-date">${f.date}</div>
+    </div>`).join('');
+}
+
+function logFailure(name, source, cells){
+  const log=lget('failureLog')||[];
+  const d=new Date();
+  const M=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  log.push({name, source, cells, date: M[d.getMonth()]+' '+d.getDate()+', '+d.getFullYear()});
+  lset('failureLog', log);
+}
+
+function clearLog(){
+  if(confirm('Clear the entire failure log?')){lset('failureLog',[]);renderFailureLog();updateSummary();}
+}
+
+// ── RENDER TRAYS ────────────────────────────────────────────
+function renderTrays(){
+  const trays=gd('trays');
+  const g=document.getElementById('trays-grid');
+  g.innerHTML='';
+  trays.forEach((t,ti)=>{
+    const totalSprouted=t.slots.reduce((a,s)=>a+(s.empty?0:s.sprouted),0);
+    const totalSeeds=t.slots.reduce((a,s)=>a+(s.empty?0:s.total),0);
+    const dotColor=TRAY_COLORS[t.color]||'#888';
+
+    const card=document.createElement('div');
+    card.className='tray-card';
+    card.style.animationDelay=(ti*0.06)+'s';
+
+    let slotsHTML='';
+    t.slots.forEach((s,si)=>{
+      if(s.empty){
+        slotsHTML+=`<div class="cell-slot empty-slot">
+          <div class="cell-visual">${pip(1,0,true)}</div>
+          <div class="cell-info"><div class="cell-name" style="color:var(--ink3);font-style:italic">empty cell</div></div>
+        </div>`;
+        return;
+      }
+      if(s.available){
+        slotsHTML+=`<div class="cell-slot available-slot" onclick="reseedSlot(${ti},${si})">
+          <div class="cell-visual">${pip(s.total,0,true)}</div>
+          <div class="cell-info">
+            <div class="cell-name" style="color:var(--amber);font-style:italic">available · ${s.total} cell${s.total>1?'s':''}</div>
+            <div class="cell-status" style="color:var(--amber)">tap to reseed</div>
+          </div>
+          <div style="font-size:.9rem">🌰</div>
+        </div>`;
+        return;
+      }
+      if(s.failed){
+        slotsHTML+=`<div class="cell-slot failed-slot">
+          <div class="cell-visual">${pip(s.total,0,false).replace(/cell-pip/g,'cell-pip failed')}</div>
+          <div class="cell-info">
+            <div class="cell-name" style="color:#c0392b;text-decoration:line-through">${esc(s.name)}</div>
+            <div class="cell-status" style="color:#c0392b">failed · logged</div>
+          </div>
+        </div>`;
+        return;
+      }
+      const sp=s.sprouted>0;
+      const pips=pip(s.total, s.sprouted, false);
+      slotsHTML+=`<div class="cell-slot${sp?' sprouted':''}" onclick="editSlot(${ti},${si})">
+        <div class="cell-visual">${pips}</div>
+        <div class="cell-info">
+          <div class="cell-name">${esc(s.name)}</div>
+          <div class="cell-status${sp?' emerging':''}">
+            ${sp?s.sprouted+' of '+s.total+' emerging':'waiting · '+s.total+' cell'+(s.total>1?'s':'')}
+          </div>
+        </div>
+        <div class="sprout-icon">🌿</div>
+      </div>`;
+    });
+
+    card.innerHTML=`
+      <div class="tray-header">
+        <div class="tray-color-dot" style="background:${dotColor}"></div>
+        <div class="tray-name">${esc(t.name)}</div>
+        <div class="tray-fraction"><span>${totalSprouted}</span>/${totalSeeds}</div>
+        <button onclick="event.stopPropagation();editTray(${ti})" style="background:none;border:1px solid var(--rule);border-radius:5px;padding:2px 8px;font-size:.62rem;color:var(--ink3);cursor:pointer;font-family:'Inconsolata',monospace;margin-left:6px;">edit</button>
+      </div>
+      <div class="cell-grid">${slotsHTML}
+        <button class="add-btn" onclick="event.stopPropagation();addSlot(${ti})" style="margin-top:0;width:100%;justify-content:center;">+ Add species</button>
+      </div>`;
+    g.appendChild(card);
+  });
+  document.getElementById('tray-count').textContent=trays.length+' trays';
+}
+
+function pip(total, sprouted, empty){
+  let h='';
+  for(let i=0;i<total;i++){
+    if(empty) h+=`<div class="cell-pip empty"></div>`;
+    else h+=`<div class="cell-pip${i<sprouted?' sprouted':''}"></div>`;
+  }
+  return h;
+}
+
+// ── RENDER POTS ─────────────────────────────────────────────
+function renderPots(){
+  const pots=gd('pots');
+  const g=document.getElementById('pots-grid');
+  g.innerHTML='';
+  pots.forEach((p,pi)=>{
+    const card=document.createElement('div');
+    card.className='pot-card';
+    card.style.animationDelay=(pi*0.06)+'s';
+    const dots=Array.from({length:p.total},(_,i)=>
+      `<div class="pot-dot${p.failed?' ':i<p.sprouted?' sprouted':''}${p.failed?' failed':''}"></div>`).join('');
+    const statusText = p.failed ? '☠️ Failed — slot available for reseeding' : p.sprouted>0?p.sprouted+' of '+p.total+' sprouted':'No sprouts yet';
+    const statusColor = p.failed ? 'color:#c0392b' : '';
+    card.innerHTML=`
+      <div class="pot-header">
+        <div class="pot-title">🪴 ${esc(p.name)}</div>
+        <button onclick="editPot(${pi})" style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);border-radius:5px;padding:2px 8px;font-size:.62rem;color:#fff;cursor:pointer;font-family:'Inconsolata',monospace;">edit</button>
+      </div>
+      <div class="pot-body">
+        <div class="pot-species" style="${p.failed?'text-decoration:line-through;color:#c0392b':''}">${esc(p.species)}</div>
+        <div class="pot-status" style="${statusColor}">${statusText}</div>
+        <div class="pot-visual">${dots}</div>
+      </div>`;
+    g.appendChild(card);
+  });
+  document.getElementById('pot-count').textContent=pots.length+' pots';
+}
+
+// ── RENDER ROCKWOOL ─────────────────────────────────────────
+function renderRW(){
+  const rws=gd('rockwool');
+  const g=document.getElementById('rw-grid');
+  g.innerHTML='';
+  rws.forEach((r,ri)=>{
+    const card=document.createElement('div');
+    card.className='rw-card';
+    card.style.animationDelay=(ri*0.06)+'s';
+    card.innerHTML=`
+      <div class="rw-cube${r.sprouted?' sprouted':r.failed?' ':''}" style="${r.failed?'background:#fdf0ee;border-color:#f0c8c2':''}">${r.failed?'☠️':r.sprouted?'🌱':'🧊'}</div>
+      <div class="rw-info">
+        <div class="rw-name" style="${r.failed?'text-decoration:line-through;color:#c0392b':''}">${esc(r.name)}</div>
+        <div class="rw-status${r.sprouted?' emerging':''}" style="${r.failed?'color:#c0392b':''}">${r.failed?'Failed — cube available':r.sprouted?'Sprouted!':'No sprout yet'}</div>
+      </div>
+      <button onclick="editRW(${ri})" style="background:none;border:1px solid var(--rule);border-radius:5px;padding:2px 8px;font-size:.62rem;color:var(--ink3);cursor:pointer;font-family:'Inconsolata',monospace;flex-shrink:0;">edit</button>`;
+    g.appendChild(card);
+  });
+  document.getElementById('rw-count').textContent=rws.length+' cubes';
+}
+
+// ── CSV EXPORT ───────────────────────────────────────────────
+function exportCSV(){
+  const today = fmtDate(new Date());
+  const rows = [];
+
+  // ── SECTION 1: Current Status ──────────────────────────────
+  rows.push(['SEEDLING TRACKER — CURRENT STATUS']);
+  rows.push(['Exported:', today]);
+  rows.push([]); // blank line
+  rows.push(['Type', 'Container', 'Species', 'Cells / Seeds', 'Sprouted', 'Germination Rate', 'Status', 'Notes']);
+
+  // Trays
+  gd('trays').forEach(t => {
+    t.slots.forEach(s => {
+      if(s.empty) return;
+      let status, germRate, notes='';
+      if(s.available){
+        status='Available (reseeding)'; germRate='—'; notes='Previously failed, slot freed';
+      } else if(s.failed){
+        status='Failed'; germRate='0%'; notes='Marked failed';
+      } else {
+        const pct = s.total > 0 ? Math.round((s.sprouted/s.total)*100) : 0;
+        status = s.sprouted > 0 ? 'Emerging' : 'Waiting';
+        germRate = pct + '%';
+      }
+      rows.push(['Tray', t.name, s.name, s.total, s.sprouted||0, germRate, status, notes]);
+    });
+  });
+
+  // Pots
+  gd('pots').forEach(p => {
+    const status = p.failed ? 'Failed' : p.sprouted > 0 ? 'Sprouted' : 'Waiting';
+    const germRate = p.failed ? '0%' : p.total > 0 ? Math.round((p.sprouted/p.total)*100)+'%' : '—';
+    rows.push(['Pot', p.name, p.species, p.total, p.sprouted||0, germRate, status, '']);
+  });
+
+  // Rockwool
+  gd('rockwool').forEach((r,i) => {
+    const status = r.failed ? 'Failed' : r.sprouted ? 'Sprouted' : 'Waiting';
+    const germRate = r.failed ? '0%' : r.sprouted ? '100%' : '0%';
+    rows.push(['Rockwool', 'Cube '+(i+1), r.name, 1, r.sprouted?1:0, germRate, status, '']);
+  });
+
+  rows.push([]); // spacer
+  rows.push([]); // spacer
+
+  // ── SECTION 2: Failure Log ─────────────────────────────────
+  const log = lget('failureLog') || [];
+  rows.push(['FAILURE LOG']);
+  rows.push(['Total failures logged:', log.length]);
+  rows.push([]);
+  rows.push(['Date', 'Species', 'Container', 'Cells Lost']);
+
+  if(log.length === 0){
+    rows.push(['—', 'No failures recorded yet', '', '']);
+  } else {
+    log.forEach(f => {
+      rows.push([f.date, f.name, f.source, f.cells]);
+    });
+  }
+
+  rows.push([]);
+  rows.push([]);
+
+  // ── SECTION 3: Summary ────────────────────────────────────
+  let totalSeeds=0, totalSprouted=0, totalFailed=0, totalWaiting=0;
+  gd('trays').forEach(t=>t.slots.forEach(s=>{
+    if(s.empty||s.available) return;
+    if(s.failed){totalFailed+=s.total;}
+    else{totalSeeds+=s.total;totalSprouted+=s.sprouted;totalWaiting+=(s.total-s.sprouted);}
+  }));
+  gd('pots').forEach(p=>{
+    if(p.failed) totalFailed++;
+    else{totalSeeds+=p.total;totalSprouted+=p.sprouted;totalWaiting+=(p.total-p.sprouted);}
+  });
+  gd('rockwool').forEach(r=>{
+    if(r.failed) totalFailed++;
+    else{totalSeeds++;if(r.sprouted)totalSprouted++;else totalWaiting++;}
+  });
+  const overallRate = totalSeeds > 0 ? Math.round((totalSprouted/(totalSeeds+totalFailed))*100) : 0;
+
+  rows.push(['SEASON SUMMARY']);
+  rows.push(['Metric', 'Value']);
+  rows.push(['Total seeds / cells tracked', totalSeeds + totalFailed]);
+  rows.push(['Emerged / sprouted', totalSprouted]);
+  rows.push(['Still waiting', totalWaiting]);
+  rows.push(['Failed', totalFailed]);
+  rows.push(['Overall germination rate (of all attempts)', overallRate + '%']);
+  rows.push(['Export date', today]);
+
+  // ── BUILD & DOWNLOAD ────────────────────────────────────────
+  const csv = rows.map(r =>
+    r.map(cell => {
+      const s = String(cell ?? '');
+      return (s.includes(',') || s.includes('"') || s.includes('\n'))
+        ? '"' + s.replace(/"/g,'""') + '"'
+        : s;
+    }).join(',')
+  ).join('\n');
+
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const d = new Date();
+  a.href = url;
+  a.download = 'seedling_tracker_' + d.getFullYear() + '_' +
+    String(d.getMonth()+1).padStart(2,'0') + '_' +
+    String(d.getDate()).padStart(2,'0') + '.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function fmtDate(d){
+  const M=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return M[d.getMonth()]+' '+d.getDate()+', '+d.getFullYear();
+}
+
+function renderAll(){ renderTrays(); renderPots(); renderRW(); updateSummary(); renderFailureLog(); }
+
+// ── MODAL ───────────────────────────────────────────────────
+function openModal(title, html, onSave, onDel, onFail){
+  document.getElementById('modal-title').textContent=title;
+  document.getElementById('modal-body').innerHTML=html;
+  document.getElementById('modal-save').onclick=()=>{onSave();closeModal();};
+  let delHTML='';
+  if(onFail) delHTML+=`<button class="btn btn-danger" id="fail-btn" style="margin-right:6px">☠️ Mark Failed</button>`;
+  if(onDel) delHTML+=`<button class="btn btn-danger" id="del-btn">Delete</button>`;
+  document.getElementById('modal-del').innerHTML=delHTML;
+  if(onFail) document.getElementById('fail-btn').onclick=()=>{onFail();closeModal();};
+  if(onDel) document.getElementById('del-btn').onclick=()=>{onDel();closeModal();};
+  document.getElementById('modal-overlay').classList.add('active');
+  setTimeout(()=>{const f=document.querySelector('#modal-body .modal-input');if(f)f.focus();},60);
+}
+function closeModal(){document.getElementById('modal-overlay').classList.remove('active');}
+document.getElementById('modal-overlay').addEventListener('click',function(e){if(e.target===this)closeModal();});
+
+function fld(label,id,val,type='text'){
+  const v2=String(val||'').replace(/"/g,'&quot;');
+  return `<div class="modal-field"><label class="modal-label">${label}</label>
+    <input class="modal-input" id="${id}" type="${type}" value="${v2}"/></div>`;
+}
+function sel(label,id,val,opts){
+  const o=opts.map(([v2,l])=>`<option value="${v2}"${val===v2?' selected':''}>${l}</option>`).join('');
+  return `<div class="modal-field"><label class="modal-label">${label}</label>
+    <select class="modal-input" id="${id}">${o}</select></div>`;
+}
+function v(id){return document.getElementById(id)?.value||'';}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+// ── TRAY EDITORS ────────────────────────────────────────────
+function editTray(ti){
+  const d=gd('trays'),t=d[ti];
+  openModal('Edit Tray: '+t.name,
+    fld('Tray Name','t-n',t.name)+
+    sel('Tray Color','t-c',t.color,[['gray','Gray'],['orange','Orange'],['green','Green'],['terracotta','Terracotta']]),
+    ()=>{d[ti].name=v('t-n');d[ti].color=v('t-c');sd('trays',d);renderAll();},
+    ()=>{if(confirm('Delete this tray?')){const dd=gd('trays');dd.splice(ti,1);sd('trays',dd);renderAll();}}
+  );
+}
+
+function addTray(){
+  const d=gd('trays');
+  openModal('Add New Tray',
+    fld('Tray Name','t-n','')+
+    sel('Tray Color','t-c','gray',[['gray','Gray'],['orange','Orange'],['green','Green'],['terracotta','Terracotta']]),
+    ()=>{
+      if(!v('t-n'))return;
+      d.push({id:uid(),color:v('t-c'),name:v('t-n'),slots:[]});
+      sd('trays',d);renderAll();
+    }
+  );
+}
+
+function editSlot(ti,si){
+  const d=gd('trays'),s=d[ti].slots[si];
+  openModal('Edit: '+s.name,
+    fld('Species Name','s-n',s.name)+
+    fld('Total Cells','s-t',s.total,'number')+
+    fld('Sprouted Count','s-s',s.sprouted,'number'),
+    ()=>{
+      d[ti].slots[si].name=v('s-n');
+      d[ti].slots[si].total=Math.max(1,parseInt(v('s-t'))||1);
+      d[ti].slots[si].sprouted=Math.min(d[ti].slots[si].total,Math.max(0,parseInt(v('s-s'))||0));
+      d[ti].slots[si].empty=false;
+      d[ti].slots[si].failed=false;
+      d[ti].slots[si].available=false;
+      sd('trays',d);renderAll();
+    },
+    ()=>{const dd=gd('trays');dd[ti].slots.splice(si,1);sd('trays',dd);renderAll();},
+    ()=>{
+      // Mark as failed
+      const dd=gd('trays');
+      logFailure(dd[ti].slots[si].name, dd[ti].name, dd[ti].slots[si].total);
+      dd[ti].slots[si].failed=false;
+      dd[ti].slots[si].available=true;
+      sd('trays',dd);renderAll();
+    }
+  );
+}
+
+function reseedSlot(ti,si){
+  const d=gd('trays');
+  openModal('Reseed Available Cell',
+    fld('New Species Name','s-n','')+
+    fld('Total Cells','s-t',d[ti].slots[si].total,'number'),
+    ()=>{
+      if(!v('s-n'))return;
+      d[ti].slots[si]={name:v('s-n'),total:Math.max(1,parseInt(v('s-t'))||1),sprouted:0,available:false,failed:false,empty:false};
+      sd('trays',d);renderAll();
+    }
+  );
+}
+
+function addSlot(ti){
+  const d=gd('trays');
+  // check capacity
+  const used=d[ti].slots.reduce((a,s)=>a+s.total,0);
+  openModal('Add Species to '+d[ti].name,
+    fld('Species Name','s-n','')+
+    fld('Total Cells','s-t','1','number')+
+    fld('Sprouted Count','s-s','0','number'),
+    ()=>{
+      if(!v('s-n'))return;
+      const tot=Math.max(1,parseInt(v('s-t'))||1);
+      const spr=Math.min(tot,Math.max(0,parseInt(v('s-s'))||0));
+      d[ti].slots.push({name:v('s-n'),total:tot,sprouted:spr});
+      sd('trays',d);renderAll();
+    }
+  );
+}
+
+// ── POT EDITORS ─────────────────────────────────────────────
+function editPot(pi){
+  const d=gd('pots'),p=d[pi];
+  openModal('Edit: '+p.name,
+    fld('Pot Name','p-n',p.name)+
+    fld('Species','p-sp',p.species)+
+    fld('Sprouted Count','p-s',p.sprouted,'number')+
+    fld('Total Seeds','p-t',p.total,'number'),
+    ()=>{
+      d[pi].name=v('p-n');d[pi].species=v('p-sp');
+      d[pi].total=Math.max(1,parseInt(v('p-t'))||1);
+      d[pi].sprouted=Math.min(d[pi].total,Math.max(0,parseInt(v('p-s'))||0));
+      d[pi].failed=false;
+      sd('pots',d);renderAll();
+    },
+    ()=>{if(confirm('Delete this pot?')){const dd=gd('pots');dd.splice(pi,1);sd('pots',dd);renderAll();}},
+    ()=>{
+      const dd=gd('pots');
+      logFailure(dd[pi].species, dd[pi].name, 1);
+      dd[pi].failed=true;dd[pi].sprouted=0;
+      sd('pots',dd);renderAll();
+    }
+  );
+}
+
+function addPot(){
+  const d=gd('pots');
+  openModal('Add New Pot',
+    fld('Pot Name','p-n','')+
+    fld('Species','p-sp','')+
+    fld('Total Seeds','p-t','1','number'),
+    ()=>{
+      if(!v('p-n'))return;
+      d.push({id:uid(),name:v('p-n'),species:v('p-sp'),sprouted:0,total:parseInt(v('p-t'))||1});
+      sd('pots',d);renderAll();
+    }
+  );
+}
+
+// ── ROCKWOOL EDITORS ────────────────────────────────────────
+function editRW(ri){
+  const d=gd('rockwool'),r=d[ri];
+  openModal('Edit Cube '+(ri+1),
+    fld('Species / Variety','rw-n',r.name)+
+    sel('Status','rw-s',r.failed?'failed':r.sprouted?'yes':'no',[['no','No sprout yet'],['yes','Sprouted! 🌱'],['failed','Failed ☠️']]),
+    ()=>{
+      const st=v('rw-s');
+      d[ri].name=v('rw-n');
+      d[ri].sprouted=st==='yes';
+      if(st==='failed'&&!d[ri].failed){logFailure(d[ri].name,'Rockwool Cube '+(ri+1),1);}
+      d[ri].failed=st==='failed';
+      sd('rockwool',d);renderAll();
+    },
+    ()=>{if(confirm('Remove this cube?')){const dd=gd('rockwool');dd.splice(ri,1);sd('rockwool',dd);renderAll();}}
+  );
+}
+
+function addRW(){
+  const d=gd('rockwool');
+  openModal('Add Rockwool Cube',
+    fld('Species / Variety','rw-n',''),
+    ()=>{
+      if(!v('rw-n'))return;
+      d.push({id:uid(),name:v('rw-n'),sprouted:false});
+      sd('rockwool',d);renderAll();
+    }
+  );
+}
+
+renderAll();
+</script>
+</body>
+</html>
