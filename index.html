@@ -26,6 +26,7 @@
   --tray-orange: #c85c28;
   --tray-green: #4a7c45;
   --tray-terra: #a05c3a;
+  --euphoric: #9b59b6;
 }
 
 * { margin:0; padding:0; box-sizing:border-box; }
@@ -624,6 +625,70 @@ select.modal-input { appearance: none; -webkit-appearance: none; }
 }
 
 /* RESPONSIVE */
+/* PODOPO REMINDER */
+.podopo-reminder {
+  background: linear-gradient(135deg, #f5f0e8 0%, #e8dff0 100%);
+  border: 2px solid var(--euphoric);
+  border-radius: 10px;
+  padding: 12px 16px;
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  animation: pulseGlow 2s ease-in-out infinite;
+}
+
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 0 8px rgba(155,89,182,.3); }
+  50% { box-shadow: 0 0 16px rgba(155,89,182,.6); }
+}
+
+.podopo-icon {
+  font-size: 1.4rem;
+  flex-shrink: 0;
+  animation: bounce 1s ease-in-out infinite;
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+.podopo-content { flex: 1; }
+
+.podopo-title {
+  font-size: .75rem;
+  font-weight: 700;
+  color: var(--euphoric);
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+
+.podopo-select {
+  width: 100%;
+  background: #fff;
+  border: 1px solid var(--euphoric);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-family: 'Inconsolata', monospace;
+  font-size: .72rem;
+  color: var(--ink);
+  cursor: pointer;
+  outline: none;
+}
+
+.podopo-complete {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--sprout);
+  font-size: .72rem;
+  font-weight: 500;
+}
+
+.podopo-complete .check { font-size: 1rem; }
+
 @media (max-width: 600px) {
   .header { flex-direction: column; align-items: flex-start; gap: 14px; padding: 20px 20px 18px; }
   .main { padding: 20px 16px 0; }
@@ -712,6 +777,9 @@ const TRAY_COLORS = {
   gray: '#8a9098', orange: '#c85c28', green: '#4a7c45', terracotta: '#a05c3a'
 };
 
+const PODOPO_OPTIONS = ['ahtataba', 'poodjare', 'regaaay', 'shimmyshamdickwham'];
+const PODOPO_INTERVAL = 24 * 60 * 60 * 1000; // 24 hours
+
 const DEFAULTS = {
   trays: [
     { id:'t1', color:'gray', name:'Gray Tray #1', slots:[
@@ -768,6 +836,87 @@ function lset(k,v){try{localStorage.setItem('st_'+k,JSON.stringify(v));}catch(e)
 function gd(k){return lget(k)||JSON.parse(JSON.stringify(DEFAULTS[k]));}
 function sd(k,v){lset(k,v);}
 function uid(){return 'id'+Date.now()+Math.random().toString(36).slice(2,6);}
+
+// ── PODOPO MODULE ───────────────────────────────────────────
+function initPodopoSchedule(trayId){
+  const schedule = lget('podopoSchedule') || {};
+  if(!schedule[trayId]){
+    schedule[trayId] = { nextDue: 0, lastPlayed: null, queuedCount: 0 };
+    lset('podopoSchedule', schedule);
+  }
+}
+
+function getPodopoStatus(trayId){
+  const schedule = lget('podopoSchedule') || {};
+  const traySchedule = schedule[trayId];
+  if(!traySchedule) return { isDue: false, queuedCount: 0 };
+  
+  const now = Date.now();
+  const isDue = now >= traySchedule.nextDue;
+  const queuedCount = isDue ? Math.min(1, traySchedule.queuedCount + 1) : traySchedule.queuedCount;
+  
+  return { isDue, queuedCount };
+}
+
+function completePodopo(trayId, musicChoice){
+  const schedule = lget('podopoSchedule') || {};
+  const now = Date.now();
+  
+  schedule[trayId] = {
+    nextDue: now + PODOPO_INTERVAL,
+    lastPlayed: now,
+    lastChoice: musicChoice,
+    queuedCount: 0
+  };
+  
+  lset('podopoSchedule', schedule);
+  renderTrays();
+}
+
+function renderPodopoReminder(trayId){
+  const schedule = lget('podopoSchedule') || {};
+  const traySchedule = schedule[trayId];
+  if(!traySchedule) return '';
+  
+  const now = Date.now();
+  const isDue = now >= traySchedule.nextDue;
+  const lastChoice = traySchedule.lastChoice;
+  
+  // Show euphoric state if played within last 24 hours
+  if(lastChoice && traySchedule.lastPlayed && (now - traySchedule.lastPlayed) < PODOPO_INTERVAL){
+    return `
+      <div class="podopo-reminder" style="animation:none;border-color:var(--sprout);background:#f0f8f0">
+        <div class="podopo-icon" style="animation:none">✓</div>
+        <div class="podopo-complete">
+          <span class="check">🎵</span>
+          <span>Seedling is euphoric :)</span>
+        </div>
+      </div>`;
+  }
+  
+  if(!isDue) return '';
+  
+  const options = PODOPO_OPTIONS.map(opt => 
+    `<option value="${opt}">${opt}</option>`
+  ).join('');
+  
+  return `
+    <div class="podopo-reminder">
+      <div class="podopo-icon">🎶</div>
+      <div class="podopo-content">
+        <div class="podopo-title">⏰ Time to play Podopo music!</div>
+        <select class="podopo-select" onchange="handlePodopoSelect('${trayId}', this.value)">
+          <option value="">Select music type...</option>
+          ${options}
+        </select>
+      </div>
+    </div>`;
+}
+
+function handlePodopoSelect(trayId, choice){
+  if(!choice) return;
+  completePodopo(trayId, choice);
+}
 
 // ── SUMMARY ─────────────────────────────────────────────────
 function updateSummary(){
@@ -880,6 +1029,9 @@ function renderTrays(){
       </div>`;
     });
 
+    initPodopoSchedule(t.id);
+    const podopoHTML = renderPodopoReminder(t.id);
+    
     card.innerHTML=`
       <div class="tray-header">
         <div class="tray-color-dot" style="background:${dotColor}"></div>
@@ -887,7 +1039,7 @@ function renderTrays(){
         <div class="tray-fraction"><span>${totalSprouted}</span>/${totalSeeds}</div>
         <button onclick="event.stopPropagation();editTray(${ti})" style="background:none;border:1px solid var(--rule);border-radius:5px;padding:2px 8px;font-size:.62rem;color:var(--ink3);cursor:pointer;font-family:'Inconsolata',monospace;margin-left:6px;">edit</button>
       </div>
-      <div class="cell-grid">${slotsHTML}
+      <div class="cell-grid">${podopoHTML}${slotsHTML}
         <button class="add-btn" onclick="event.stopPropagation();addSlot(${ti})" style="margin-top:0;width:100%;justify-content:center;">+ Add species</button>
       </div>`;
     g.appendChild(card);
